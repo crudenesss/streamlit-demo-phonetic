@@ -50,7 +50,7 @@ def advance(words: list[dict], current: dict, reshuffle: bool) -> None:
         exclude_id=current["id"] if reshuffle else None,
     )
     st.session_state.revealed = False
-    st.session_state.reshuffle = False
+    st.session_state.pop("reshuffle", None)
 
 
 def reset(words: list[dict]) -> None:
@@ -58,7 +58,7 @@ def reset(words: list[dict]) -> None:
     st.session_state.last_group = None
     st.session_state.current = pick_next(words, set(), None)
     st.session_state.revealed = False
-    st.session_state.reshuffle = False
+    st.session_state.pop("reshuffle", None)
 
 
 def render_reshuffle_checkbox() -> bool:
