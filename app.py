@@ -23,8 +23,16 @@ def load_words() -> list[dict]:
     ]
 
 
-def pick_next(words: list[dict], shown: set, last_group: int | None) -> dict | None:
+def pick_next(
+    words: list[dict],
+    shown: set,
+    last_group: int | None,
+    exclude_id: int | None = None,
+) -> dict | None:
     available = [w for w in words if w["id"] not in shown]
+    if exclude_id is not None:
+        trimmed = [w for w in available if w["id"] != exclude_id]
+        available = trimmed if trimmed else available  # fallback if only that word remains
     if not available:
         return None
     preferred = [w for w in available if w["group_id"] != last_group]
@@ -61,13 +69,32 @@ def main() -> None:
     st.progress(done / total, text=f"{done} / {total} words")
 
     st.markdown(f"## {current['word']}")
-    st.caption(f"Phonetic group: **{current['group']}**")
 
     st.write("")
 
     if not st.session_state.revealed:
         if st.button("Reveal transcription", use_container_width=True):
             st.session_state.revealed = True
+            st.rerun()
+
+        st.write("")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            skip_clicked = st.button("Skip", use_container_width=True)
+        with col2:
+            reshuffle = st.checkbox("Reshuffle in deck")
+
+        if skip_clicked:
+            if not reshuffle:
+                st.session_state.shown.add(current["id"])
+            st.session_state.last_group = current["group_id"]
+            st.session_state.current = pick_next(
+                words,
+                st.session_state.shown,
+                st.session_state.last_group,
+                exclude_id=current["id"] if reshuffle else None,
+            )
+            st.session_state.revealed = False
             st.rerun()
     else:
         st.markdown(
