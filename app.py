@@ -32,11 +32,25 @@ def pick_next(
     available = [w for w in words if w["id"] not in shown]
     if exclude_id is not None:
         trimmed = [w for w in available if w["id"] != exclude_id]
-        available = trimmed if trimmed else available  # fallback if only that word remains
+        available = trimmed if trimmed else available
     if not available:
         return None
     preferred = [w for w in available if w["group_id"] != last_group]
     return random.choice(preferred if preferred else available)
+
+
+def advance(words: list[dict], current: dict, reshuffle: bool) -> None:
+    if not reshuffle:
+        st.session_state.shown.add(current["id"])
+    st.session_state.last_group = current["group_id"]
+    st.session_state.current = pick_next(
+        words,
+        st.session_state.shown,
+        st.session_state.last_group,
+        exclude_id=current["id"] if reshuffle else None,
+    )
+    st.session_state.revealed = False
+    st.session_state.reshuffle = False
 
 
 def reset(words: list[dict]) -> None:
@@ -44,6 +58,42 @@ def reset(words: list[dict]) -> None:
     st.session_state.last_group = None
     st.session_state.current = pick_next(words, set(), None)
     st.session_state.revealed = False
+    st.session_state.reshuffle = False
+
+
+def render_reshuffle_checkbox() -> bool:
+    return st.checkbox("Reshuffle in deck", key="reshuffle")
+
+
+def render_hidden(words: list[dict], current: dict) -> None:
+    if st.button("Reveal transcription", use_container_width=True):
+        st.session_state.revealed = True
+        st.rerun()
+
+    st.write("")
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        skip_clicked = st.button("Skip", use_container_width=True)
+    with col2:
+        reshuffle = render_reshuffle_checkbox()
+
+    if skip_clicked:
+        advance(words, current, reshuffle)
+        st.rerun()
+
+
+def render_revealed(words: list[dict], current: dict) -> None:
+    st.markdown(
+        f"<div style='font-size:1.6rem; letter-spacing:0.05em; padding:0.5rem 0'>"
+        f"{current['transcription']}</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    if st.button("Next word →", use_container_width=True, type="primary"):
+        advance(words, current, st.session_state.get("reshuffle", False))
+        st.rerun()
+
+    render_reshuffle_checkbox()
 
 
 def main() -> None:
@@ -69,55 +119,12 @@ def main() -> None:
     st.progress(done / total, text=f"{done} / {total} words")
 
     st.markdown(f"## {current['word']}")
-
     st.write("")
 
     if not st.session_state.revealed:
-        if st.button("Reveal transcription", use_container_width=True):
-            st.session_state.revealed = True
-            st.rerun()
-
-        st.write("")
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            skip_clicked = st.button("Skip", use_container_width=True)
-        with col2:
-            reshuffle = st.checkbox("Reshuffle in deck", key="reshuffle")
-
-        if skip_clicked:
-            if not reshuffle:
-                st.session_state.shown.add(current["id"])
-            st.session_state.last_group = current["group_id"]
-            st.session_state.current = pick_next(
-                words,
-                st.session_state.shown,
-                st.session_state.last_group,
-                exclude_id=current["id"] if reshuffle else None,
-            )
-            st.session_state.revealed = False
-            st.rerun()
+        render_hidden(words, current)
     else:
-        st.markdown(
-            f"<div style='font-size:1.6rem; letter-spacing:0.05em; padding:0.5rem 0'>"
-            f"{current['transcription']}</div>",
-            unsafe_allow_html=True,
-        )
-        st.write("")
-        if st.button("Next word →", use_container_width=True, type="primary"):
-            reshuffle = st.session_state.get("reshuffle", False)
-            if not reshuffle:
-                st.session_state.shown.add(current["id"])
-            st.session_state.last_group = current["group_id"]
-            st.session_state.current = pick_next(
-                words,
-                st.session_state.shown,
-                st.session_state.last_group,
-                exclude_id=current["id"] if reshuffle else None,
-            )
-            st.session_state.revealed = False
-            st.rerun()
-
-        st.checkbox("Reshuffle in deck", key="reshuffle")
+        render_revealed(words, current)
 
 
 if __name__ == "__main__":
