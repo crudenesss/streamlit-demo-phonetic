@@ -82,7 +82,7 @@ def main() -> None:
         with col1:
             skip_clicked = st.button("Skip", use_container_width=True)
         with col2:
-            reshuffle = st.checkbox("Reshuffle in deck")
+            reshuffle = st.checkbox("Reshuffle in deck", key="reshuffle")
 
         if skip_clicked:
             if not reshuffle:
@@ -104,13 +104,20 @@ def main() -> None:
         )
         st.write("")
         if st.button("Next word →", use_container_width=True, type="primary"):
-            st.session_state.shown.add(current["id"])
+            reshuffle = st.session_state.get("reshuffle", False)
+            if not reshuffle:
+                st.session_state.shown.add(current["id"])
             st.session_state.last_group = current["group_id"]
             st.session_state.current = pick_next(
-                words, st.session_state.shown, st.session_state.last_group
+                words,
+                st.session_state.shown,
+                st.session_state.last_group,
+                exclude_id=current["id"] if reshuffle else None,
             )
             st.session_state.revealed = False
             st.rerun()
+
+        st.checkbox("Reshuffle in deck", key="reshuffle")
 
 
 if __name__ == "__main__":
